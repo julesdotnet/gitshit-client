@@ -1,36 +1,25 @@
-use std::env;
-use sqlx::{MySqlPool, Row, mysql::MySqlPoolOptions};
 use std::fs;
+use serde_json::json;
 
-pub async fn set_credentials(display_name: String, token: i32) -> Result<(), sqlx::Error> {
-    let env_path = dirs::home_dir().unwrap().join(".env");
-    dotenvy::from_path(env_path).ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL not set");
-    let pool = MySqlPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
+pub async fn set_credentials(display_name: String, token: String) -> Result<(), reqwest::Error> {
+    let client = reqwest::Client::new();
+    let res = client
+        .post("https://gitshit.onrender.com/api/login")
+        .json(&json!({
+            "display_name": display_name,
+            "token": token
+        }))
+        .send()
         .await?;
 
-    if verify_user(&pool, &display_name, token).await? {
+    if res.status().is_success() {
         let config = format!("DISPLAY_NAME={}\nUSER_TOKEN={}", display_name, token);
         let config_path = dirs::home_dir().unwrap().join(".gsconfig");
         fs::write(config_path, config).expect("Failed to save credentials");
+        println!("Logged in as {}", display_name);
     } else {
         eprintln!("Invalid credentials");
     }
 
     Ok(())
-}
-
-pub async fn verify_user(pool: &MySqlPool, display_name: &str, token: i32) -> Result<bool, sqlx::Error> {
-    let result = sqlx::query(
-        "SELECT COUNT(*) as count FROM users WHERE display_name = ? AND token = ?"
-    )
-    .bind(display_name)
-    .bind(token)
-    .fetch_one(pool)
-    .await?;
-
-    let count: i64 = result.try_get("count")?;
-    Ok(count > 0)
 }

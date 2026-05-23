@@ -1,7 +1,6 @@
 use clap::Parser;
 use post_generate::Post;
 use command::{Cli, Commands};
-
 mod post_generate;
 mod db_insert;
 mod command;
@@ -18,15 +17,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             set_credentials::set_credentials(display_name, token).await?;
         }
         Commands::Post { message, filepath, line_start, line_end } => {
-            let creator_id: i32 = std::env::var("USER_TOKEN")
-                .expect("Not logged in")
-                .parse()
-                .expect("USER_TOKEN is not a valid number");
-
+            let creator_id: String = std::env::var("USER_TOKEN")
+                .expect("Not logged in");
             let post = Post::from(message, filepath, line_start - 1, line_end - 1, creator_id)?;
             db_insert::upload_post(&post).await?;
         }
     }
-
     Ok(())
 }

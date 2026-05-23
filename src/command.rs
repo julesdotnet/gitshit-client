@@ -13,7 +13,7 @@ pub enum Commands {
         #[arg(short, long)]
         display_name: String,
         #[arg(short, long)]
-        token: i32,
+        token: String,
     },
     Post {
         #[arg(short, long)]
